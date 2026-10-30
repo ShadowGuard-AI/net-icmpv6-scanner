@@ -1,3 +1,5 @@
+![Banner](banner.png)
+
 # net-icmpv6-scanner
 Discovers IPv6 hosts on a local network using ICMPv6 Neighbor Solicitation and Router Solicitation messages, identifying potential rogue devices or misconfigured endpoints. - Focused on Basic network operations
 
