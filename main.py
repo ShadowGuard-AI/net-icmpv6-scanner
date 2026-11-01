@@ -54,6 +54,8 @@ def craft_icmpv6_ns(target_ip):
 
         # Neighbor Solicitation Body
         target_address = socket.inet_pton(socket.AF_INET6, target_ip)
+        # This link layer option is all zero bytes. I never fill in a real MAC address, so a
+        # strict receiver is free to throw the solicitation away on that alone.
         source_link_layer_address_option = b'\x01\x01\x00\x00\x00\x00\x00\x00'  # Type 1 (Source Link-Layer Address), Length 1, MAC address (placeholder)
         
         # Pack the header and body
@@ -118,6 +120,8 @@ def craft_icmpv6_echo_request(identifier=12345, sequence_number=1):
         # ICMPv6 Echo Request Body
         icmpv6_identifier = identifier
         icmpv6_sequence_number = sequence_number
+        # The echo request goes out with its checksum still zero. I rely on the kernel filling
+        # it in for raw ICMPv6 sends, unlike the NS and RS packets above where I compute it myself.
         icmpv6_data = b"Hello, IPv6 World!"
 
         # Pack the header and body
@@ -183,6 +187,8 @@ def send_icmpv6_message(interface, target_ip, message):
     try:
         # Create a raw socket for IPv6 ICMP
         sock = socket.socket(socket.AF_INET6, socket.SOCK_RAW, socket.IPPROTO_ICMPV6)
+        # I pass the interface name where this bind expects an IPv6 address. On a normal host
+        # that name does not resolve as one, so the send can fail here before anything leaves.
         sock.bind((interface, 0))
         sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_HOPLIMIT, 255)  # Set Hop Limit
 
@@ -196,6 +202,9 @@ def send_icmpv6_message(interface, target_ip, message):
     except Exception as e:
         logging.error(f"Error sending ICMPv6 message: {e}")
 
+# Nothing in this file ever reads a reply. There is no receive path for a Neighbor
+# Advertisement or a Router Advertisement, so sent is all I can honestly report.
+# I never learn which hosts actually answered, whatever the help text promises.
 def scan_network(interface, target, router_solicitation, ping, verbose):
     """
     Scans the network for IPv6 hosts.
@@ -215,9 +224,13 @@ def scan_network(interface, target, router_solicitation, ping, verbose):
                 if verbose:
                     logging.info(f"Scanning network: {network}")
 
+                # hosts() on a /64 is an enormous walk with a fresh socket per address. Nothing here
+                # warns about the size of the range before the loop starts.
                 for ip in network.hosts():
                     target_ip = str(ip)
                     if router_solicitation:
+                        # In this branch I resend the same multicast solicitation once per host in the
+                        # range. The routers heard the first copy, the rest buys nothing.
                         message = craft_icmpv6_rs()
                         if message:
                             send_icmpv6_message(interface, ALL_NODES_MCAST, message)
