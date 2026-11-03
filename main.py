@@ -196,11 +196,13 @@ def send_icmpv6_message(interface, target_ip, message):
         sock.sendto(message, (target_ip, 0))  # Port is irrelevant for ICMP
 
         sock.close()
+        return True
 
     except socket.error as e:
         logging.error(f"Socket error: {e}")
     except Exception as e:
         logging.error(f"Error sending ICMPv6 message: {e}")
+    return False
 
 # Nothing in this file ever reads a reply. There is no receive path for a Neighbor
 # Advertisement or a Router Advertisement, so sent is all I can honestly report.
@@ -233,19 +235,19 @@ def scan_network(interface, target, router_solicitation, ping, verbose):
                         # range. The routers heard the first copy, the rest buys nothing.
                         message = craft_icmpv6_rs()
                         if message:
-                            send_icmpv6_message(interface, ALL_NODES_MCAST, message)
-                            logging.info(f"Sent Router Solicitation to {ALL_NODES_MCAST}")
+                            if send_icmpv6_message(interface, ALL_NODES_MCAST, message):
+                                logging.info(f"Sent Router Solicitation to {ALL_NODES_MCAST}")
                     else:
                         message = craft_icmpv6_ns(target_ip)
                         if message:
-                            send_icmpv6_message(interface, target_ip, message)
-                            logging.info(f"Sent Neighbor Solicitation to {target_ip}")
+                            if send_icmpv6_message(interface, target_ip, message):
+                                logging.info(f"Sent Neighbor Solicitation to {target_ip}")
                     
                     if ping:
                         ping_message = craft_icmpv6_echo_request()
                         if ping_message:
-                             send_icmpv6_message(interface, target_ip, ping_message)
-                             logging.info(f"Sent ICMPv6 Echo Request to {target_ip}")
+                             if send_icmpv6_message(interface, target_ip, ping_message):
+                                 logging.info(f"Sent ICMPv6 Echo Request to {target_ip}")
 
             except ValueError:
                 # Assume the target is a single IP address
@@ -256,19 +258,19 @@ def scan_network(interface, target, router_solicitation, ping, verbose):
                 if router_solicitation:
                     message = craft_icmpv6_rs()
                     if message:
-                        send_icmpv6_message(interface, ALL_NODES_MCAST, message)
-                        logging.info(f"Sent Router Solicitation to {ALL_NODES_MCAST}")
+                        if send_icmpv6_message(interface, ALL_NODES_MCAST, message):
+                            logging.info(f"Sent Router Solicitation to {ALL_NODES_MCAST}")
                 else:
                     message = craft_icmpv6_ns(target_ip)
                     if message:
-                        send_icmpv6_message(interface, target_ip, message)
-                        logging.info(f"Sent Neighbor Solicitation to {target_ip}")
+                        if send_icmpv6_message(interface, target_ip, message):
+                            logging.info(f"Sent Neighbor Solicitation to {target_ip}")
                     
                 if ping:
                     ping_message = craft_icmpv6_echo_request()
                     if ping_message:
-                         send_icmpv6_message(interface, target_ip, ping_message)
-                         logging.info(f"Sent ICMPv6 Echo Request to {target_ip}")
+                         if send_icmpv6_message(interface, target_ip, ping_message):
+                             logging.info(f"Sent ICMPv6 Echo Request to {target_ip}")
 
         else:
             # Scan the all-nodes multicast address
@@ -278,8 +280,8 @@ def scan_network(interface, target, router_solicitation, ping, verbose):
             if router_solicitation:
                 message = craft_icmpv6_rs()
                 if message:
-                    send_icmpv6_message(interface, ALL_NODES_MCAST, message)
-                    logging.info(f"Sent Router Solicitation to {ALL_NODES_MCAST}")
+                    if send_icmpv6_message(interface, ALL_NODES_MCAST, message):
+                        logging.info(f"Sent Router Solicitation to {ALL_NODES_MCAST}")
             else:
                 logging.warning("No target specified.  Neighbor Solicitation requires a target address.  Use Router Solicitation (-r) to discover routers.")
                 return
